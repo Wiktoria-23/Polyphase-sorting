@@ -15,6 +15,7 @@ public:
     void stopInput();
     void writeRecordToFile(Record* record);
     void printFile();
+    Record* readRecordFromFile();
 private:
     string dataPath = "../src/data.dat";
     fstream fileStream;

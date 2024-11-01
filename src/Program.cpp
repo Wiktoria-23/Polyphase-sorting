@@ -62,6 +62,7 @@ void Program::generateData() {
     for (int i = 0; i < recordsAmount; i++) {
         newRecord = new Record(this->numbersGenerator, this->numbersDistribution);
         this->dataManager->writeRecordToFile(newRecord);
+        delete newRecord;
     }
     this->dataManager->stopInput();
 }
@@ -69,7 +70,7 @@ void Program::generateData() {
 void Program::inputRecords() {
     int recordsAmount;
     double a, b, h;
-    cout << "Podaj liczbe nowych rekordow: ";
+    cout << "Podaj liczbe nowych rekordow:";
     cin >> recordsAmount;
     this->dataManager->startInput();
     for (int i = 0; i < recordsAmount; i++) {

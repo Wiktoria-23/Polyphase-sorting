@@ -39,11 +39,21 @@ void DataManager::stopInput() {
 void DataManager::printFile() {
     this->fileStream.open(this->dataPath, std::ios::binary | std::ios::in);
     cout << "Wyswietlanie zawartosci pliku:" << endl;
-    double record[3];
+    Record* record;
     int counter = 1;
-    while (this->fileStream.read(reinterpret_cast<char*>(record), RECORD_SIZE)) {
-        cout << counter << ". " << record[0] << " " << record[1] << " " << record[2] << endl;
+    while ((record = this->readRecordFromFile()) != nullptr) {
+        cout << counter << ". " << record->getA() << " " << record->getB() << " " << record->getH() << endl;
         counter++;
+        delete record;
     }
     this->fileStream.close();
 }
+
+Record *DataManager::readRecordFromFile() {
+    double record[3];
+    if (this->fileStream.read(reinterpret_cast<char*>(record), RECORD_SIZE)) {
+        return new Record(record[0], record[1], record[2]);
+    }
+    return nullptr;
+}
+
