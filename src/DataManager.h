@@ -3,22 +3,41 @@
 #include <string>
 #include <fstream>
 #include <iostream>
-#include "Record.h"
+#include <vector>
 using namespace std;
 
 
+class DataManager;
+class DiskPage;
+class Record;
+
 class DataManager {
 public:
-    DataManager();
+    DataManager(string dataPath);
     ~DataManager();
-    void startInput();
+    virtual void startInput();
     void stopInput();
     void writeRecordToFile(Record* record);
-    void printFile();
+    virtual void printFile();
+    virtual void startReadingData();
+    void stopReadingData();
+    bool isFileRead();
     Record* readRecordFromFile();
-private:
-    string dataPath = "../src/data.dat";
+    void readNextDiskPageFromFile();
+    virtual vector<Record*>* getNextRun();
+    void increaseDiskAccessCounter();
+    void writeDiskPageToFile();
+    int getDiskAccessCounter();
+    DiskPage* getCurrentDiskPage();
+    void printRecords();
+    const char* getFilename();
+    virtual void createNewFile();
+protected:
+    DiskPage* currentDiskPage;
+    string dataPath;
     fstream fileStream;
+    bool continueReadingData;
+    int diskAccessCounter;
 };
 
 

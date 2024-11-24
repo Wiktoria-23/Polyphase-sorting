@@ -1,16 +1,22 @@
 #include "Program.h"
+#include "DataManager.h"
+#include "DiskPage.h"
+#include "PolyphaseSorting.h"
+#include "Record.h"
 
 Program::Program() {
-    this->dataManager = new DataManager();
+    this->dataManager = new DataManager("../src/data.dat");
     random_device random_device;
     this->numbersGenerator = new default_random_engine(random_device());
     this->numbersDistribution = new uniform_real_distribution<double>(0, 100);
+    this->polyphaseSorting = new PolyphaseSorting(this->dataManager);
 }
 
 Program::~Program() {
     delete this->dataManager;
     delete this->numbersGenerator;
     delete this->numbersDistribution;
+    delete this->polyphaseSorting;
 }
 
 void Program::runProgram() {
@@ -45,10 +51,34 @@ int Program::chooseOption() {
         this->inputRecords();
     }
     if (optionNumber == 3) {
+        cout << "Wyswietlanie danych wejsciowych:" << endl;
         this->dataManager->printFile();
     }
     if (optionNumber == 4) {
-        this->sortFile();
+        this->polyphaseSorting->readDataFromFile();
+        cout << "Liczba wczytanych serii jest rowna " << this->polyphaseSorting->calculateRunsAmount() << endl;
+        if (this->polyphaseSorting->isSorted()) {
+            cout << "Plik jest pusty" << endl;
+            return optionNumber;
+        }
+        this->dataManager->printFile();
+        cout << "Czy chcesz wyswietlac tasmy po kazdej fazie? (1 - tak, 0 - nie)" << endl;
+        int printTapes;
+        cin >> printTapes;
+        while (!this->polyphaseSorting->isSorted()) {
+            cout << endl << this->polyphaseSorting->getPhasesCount() + 1 << ". faza sortowania" << endl;
+            this->polyphaseSorting->continueSorting();
+            this->polyphaseSorting->increasePhasesCount();
+            if (printTapes == 1) {
+                this->polyphaseSorting->printTapes();
+            }
+        }
+        cout << "Zakonczono sortowanie" << endl;
+        cout << "Plik po posortowaniu: " << endl;
+        this->polyphaseSorting->printResultAndDeleteFiles();
+        cout << "Sortowanie zostalo zakonczone po " << this->polyphaseSorting->getPhasesCount() << " fazach i wymagalo ";
+        cout << this->polyphaseSorting->countDiskAccesses() << " dostepow do dysku." << endl;
+        this->polyphaseSorting->reset();
     }
     return optionNumber;
 }
@@ -65,6 +95,7 @@ void Program::generateData() {
         delete newRecord;
     }
     this->dataManager->stopInput();
+    this->polyphaseSorting->setNotSorted();
 }
 
 void Program::inputRecords() {
@@ -84,8 +115,4 @@ void Program::inputRecords() {
         this->dataManager->writeRecordToFile(new Record(a, b, h));
     }
     this->dataManager->stopInput();
-}
-
-void Program::sortFile() {
-    // tutaj trzeba napisać sortowanie - ostatecznie chyba nie będzie to w tym pliku
 }

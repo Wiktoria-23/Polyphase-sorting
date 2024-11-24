@@ -1,5 +1,11 @@
 #include "Record.h"
 
+Record::Record() {
+    this->a = 0;
+    this->b = 0;
+    this->h = 0;
+}
+
 Record::Record(default_random_engine* generator, uniform_real_distribution<double>* distribution) {
     this->a = (*distribution)(*generator);
     this->b = (*distribution)(*generator);

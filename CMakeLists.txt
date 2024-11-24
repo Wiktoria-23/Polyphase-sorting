@@ -8,7 +8,11 @@ add_executable(Projekt_sortowanie src/main.cpp
         src/program.h
         src/Record.cpp
         src/Record.h
-        src/DiskPage.cpp
-        src/DiskPage.h
         src/DataManager.cpp
-        src/DataManager.h)
+        src/DataManager.h
+        src/polyphaseSorting.cpp
+        src/polyphaseSorting.h
+        src/Tape.cpp
+        src/Tape.h
+        src/DiskPage.cpp
+        src/DiskPage.h)
