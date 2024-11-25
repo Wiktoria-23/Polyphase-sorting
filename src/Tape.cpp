@@ -59,10 +59,10 @@ void Tape::startInput() {
 }
 
 void Tape::printFile() {
-    this->fileStream.open(this->dataPath, std::ios::binary | std::ios::in);
+    this->startReadingData();
     fileStream.seekg(this->readingStart);
     this->printRecords();
-    this->fileStream.close();
+    this->stopReadingData();
 }
 
 void Tape::setCapacity(int newCapacity) {

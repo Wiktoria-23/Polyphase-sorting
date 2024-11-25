@@ -63,8 +63,11 @@ void PolyphaseSorting::readDataFromFile() {
     } while (!this->dataManager->isFileRead() || this->dataManager->getCurrentDiskPage()->getIndex() < this->dataManager->getCurrentDiskPage()->getRecords()->size());
     this->getReadyToSort();
     this->dataManager->stopReadingData();
-    tape1->stopInput();
-    tape2->stopInput();
+    this->tape1->stopInput();
+    this->tape2->stopInput();
+    if (this->tape1->getRunsCount() == 1 && this->tape2->getRunsCount() == 0) {
+        this->sorted = true;
+    }
 }
 
 void PolyphaseSorting::continueSorting() {
@@ -192,7 +195,12 @@ int PolyphaseSorting::calculateRunsAmount() {
 }
 
 void PolyphaseSorting::printResultAndDeleteFiles() {
-    this->tape2->printFile();
+    if (this->tape2->getRunsCount() != 0) {
+        this->tape2->printFile();
+    }
+    else {
+        this->tape1->printFile();
+    }
     string path = this->dataManager->getFilename();
     remove(this->dataManager->getFilename());
     if (this->tape2->getRunsCount() > 0) {

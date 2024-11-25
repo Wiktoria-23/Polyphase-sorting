@@ -56,25 +56,29 @@ int Program::chooseOption() {
     }
     if (optionNumber == 4) {
         this->polyphaseSorting->readDataFromFile();
-        cout << "Liczba wczytanych serii jest rowna " << this->polyphaseSorting->calculateRunsAmount() << endl;
-        if (this->polyphaseSorting->isSorted()) {
+        if (this->polyphaseSorting->calculateRunsAmount() == 0) {
             cout << "Plik jest pusty" << endl;
             return optionNumber;
         }
         this->dataManager->printFile();
-        cout << "Czy chcesz wyswietlac tasmy po kazdej fazie? (1 - tak, 0 - nie)" << endl;
+        cout << "Czy chcesz wyswietlac tasmy po kazdej fazie sortowania? (1 - tak, 0 - nie)" << endl;
         int printTapes;
         cin >> printTapes;
+        if (printTapes == 1) {
+            cout << endl << "Tasmy przed sortowaniem" << endl;
+            this->polyphaseSorting->printTapes();
+        }
         while (!this->polyphaseSorting->isSorted()) {
             cout << endl << this->polyphaseSorting->getPhasesCount() + 1 << ". faza sortowania" << endl;
             this->polyphaseSorting->continueSorting();
             this->polyphaseSorting->increasePhasesCount();
             if (printTapes == 1) {
+                cout << endl << "Tasmy po scaleniu" << endl;
                 this->polyphaseSorting->printTapes();
             }
         }
         cout << "Zakonczono sortowanie" << endl;
-        cout << "Plik po posortowaniu: " << endl;
+        cout << endl << "Plik po posortowaniu: " << endl;
         this->polyphaseSorting->printResultAndDeleteFiles();
         cout << "Sortowanie zostalo zakonczone po " << this->polyphaseSorting->getPhasesCount() << " fazach i wymagalo ";
         cout << this->polyphaseSorting->countDiskAccesses() << " dostepow do dysku." << endl;

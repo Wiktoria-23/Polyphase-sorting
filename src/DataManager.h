@@ -25,7 +25,6 @@ public:
     Record* readRecordFromFile();
     void readNextDiskPageFromFile();
     virtual vector<Record*>* getNextRun();
-    void increaseDiskAccessCounter();
     void writeDiskPageToFile();
     int getDiskAccessCounter();
     DiskPage* getCurrentDiskPage();

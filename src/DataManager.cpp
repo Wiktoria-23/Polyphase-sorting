@@ -42,9 +42,9 @@ void DataManager::stopInput() {
 }
 
 void DataManager::printFile() {
-    this->fileStream.open(this->dataPath, std::ios::binary | std::ios::in);
+    this->startReadingData();
     this->printRecords();
-    this->fileStream.close();
+    this->stopReadingData();
 }
 
 Record* DataManager::readRecordFromFile() {
@@ -68,7 +68,7 @@ void DataManager::readNextDiskPageFromFile() {
     if (recordsRead < DISK_PAGE_SIZE/RECORD_SIZE) {
         this->continueReadingData = false;
     }
-    increaseDiskAccessCounter();
+    this->diskAccessCounter += 1;
 }
 
 void DataManager::startReadingData() {
@@ -80,8 +80,6 @@ void DataManager::startReadingData() {
 
 void DataManager::stopReadingData() {
     this->continueReadingData = false;
-    // UPEWNIJ SIĘ ŻE WSZYSTKIE REKORDY SĄ USUWANE PRZED USUNIĘCIEM STRONY DYSKOWEJ
-    //this->currentDiskPage->deleteAllRecords();
     delete this->currentDiskPage;
     this->currentDiskPage = nullptr;
     this->fileStream.close();
@@ -129,10 +127,6 @@ vector<Record*>* DataManager::getNextRun() {
     return run;
 }
 
-void DataManager::increaseDiskAccessCounter() {
-    this->diskAccessCounter++;
-}
-
 void DataManager::writeDiskPageToFile() {
     int recordsAmount = this->currentDiskPage->getRecords()->size();
     double dataToWrite[3 * recordsAmount];
@@ -144,7 +138,7 @@ void DataManager::writeDiskPageToFile() {
     fileStream.write(reinterpret_cast<char*>(dataToWrite), RECORD_SIZE * recordsAmount);
     this->currentDiskPage->deleteAllRecords();
     this->currentDiskPage->clear();
-    this->increaseDiskAccessCounter();
+    this->diskAccessCounter += 1;
 }
 
 int DataManager::getDiskAccessCounter() {
@@ -156,8 +150,33 @@ DiskPage* DataManager::getCurrentDiskPage() {
 }
 
 void DataManager::printRecords() {
-    // ZMIEŃ WYŚWIETLANIE PLIKU
-    Record* record;
+    int counter = 1;
+    cout << "(numer rekordu, a, b, h, pole)" << endl;
+    Record* record = nullptr;
+    this->readNextDiskPageFromFile();
+    do {
+        if (this->currentDiskPage->getIndex() >= this->currentDiskPage->getRecords()->size()) {
+            this->readNextDiskPageFromFile();
+            this->diskAccessCounter -= 1;  // nie zliczamy dostępów do dysku przy wyświetlaniu pliku
+        }
+        if (this->currentDiskPage->getRecords()->size() > 0) {
+            record = this->currentDiskPage->getRecordFromDiskPage(this->currentDiskPage->getIndex());
+            this->currentDiskPage->increaseIndex();
+        }
+        else {
+            record = nullptr;
+        }
+        if (record == nullptr && counter == 1) {
+            cout << "Plik jest pusty" << endl;
+            break;
+        }
+        if (record == nullptr) {
+            break;
+        }
+        cout << counter << ". " << record->getA() << " " << record->getB() << " " << record->getH() << " " << record->calculateField() << endl;
+        counter++;
+    } while (record != nullptr && !(this->continueReadingData && this->currentDiskPage->getIndex() >= this->currentDiskPage->getRecords()->size()));
+    /*Record* record;
     int counter = 1;
     cout << "(numer rekordu, a, b, h, pole)" << endl;
     do {
@@ -172,7 +191,7 @@ void DataManager::printRecords() {
         cout << counter << ". " << record->getA() << " " << record->getB() << " " << record->getH() << " " << record->calculateField() << endl;
         counter++;
         delete record;
-    } while (true);
+    } while (true);*/
 }
 
 const char* DataManager::getFilename() {
