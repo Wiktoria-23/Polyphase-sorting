@@ -154,7 +154,7 @@ void DataManager::printRecords() {
     cout << "(numer rekordu, a, b, h, pole)" << endl;
     Record* record = nullptr;
     this->readNextDiskPageFromFile();
-    do {
+    while (true) {
         if (this->currentDiskPage->getIndex() >= this->currentDiskPage->getRecords()->size()) {
             this->readNextDiskPageFromFile();
             this->diskAccessCounter -= 1;  // nie zliczamy dostępów do dysku przy wyświetlaniu pliku
@@ -170,12 +170,12 @@ void DataManager::printRecords() {
             cout << "Plik jest pusty" << endl;
             break;
         }
-        if (record == nullptr) {
-            break;
-        }
         cout << counter << ". " << record->getA() << " " << record->getB() << " " << record->getH() << " " << record->calculateField() << endl;
         counter++;
-    } while (record != nullptr && !(this->continueReadingData && this->currentDiskPage->getIndex() >= this->currentDiskPage->getRecords()->size()));
+        if (record == nullptr || (!this->continueReadingData && this->currentDiskPage->getIndex() >= this->currentDiskPage->getRecords()->size())) {
+            break;
+        }
+    }
     /*Record* record;
     int counter = 1;
     cout << "(numer rekordu, a, b, h, pole)" << endl;

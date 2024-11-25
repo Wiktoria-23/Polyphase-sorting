@@ -61,7 +61,9 @@ void PolyphaseSorting::readDataFromFile() {
             lastElementValue2 = run->back()->calculateField();
         }
     } while (!this->dataManager->isFileRead() || this->dataManager->getCurrentDiskPage()->getIndex() < this->dataManager->getCurrentDiskPage()->getRecords()->size());
+    cout << "Odczytano " << this->calculateRunsAmount() << " serii z pliku wejsciowego" << endl;
     this->getReadyToSort();
+    cout << "W pliku do posortowania znajduje się " << this->calculateRunsAmount() << " serii" << endl;
     this->dataManager->stopReadingData();
     this->tape1->stopInput();
     this->tape2->stopInput();
