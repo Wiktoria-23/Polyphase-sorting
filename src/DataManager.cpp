@@ -162,6 +162,8 @@ void DataManager::printRecords() {
         if (this->currentDiskPage->getRecords()->size() > 0) {
             record = this->currentDiskPage->getRecordFromDiskPage(this->currentDiskPage->getIndex());
             this->currentDiskPage->increaseIndex();
+            cout << counter << ". " << record->getA() << " " << record->getB() << " " << record->getH() << " " << record->calculateField() << endl;
+            counter++;
         }
         else {
             record = nullptr;
@@ -170,8 +172,6 @@ void DataManager::printRecords() {
             cout << "Plik jest pusty" << endl;
             break;
         }
-        cout << counter << ". " << record->getA() << " " << record->getB() << " " << record->getH() << " " << record->calculateField() << endl;
-        counter++;
         if (record == nullptr || (!this->continueReadingData && this->currentDiskPage->getIndex() >= this->currentDiskPage->getRecords()->size())) {
             break;
         }
