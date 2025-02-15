@@ -5,18 +5,18 @@
 #include "Record.h"
 
 Program::Program() {
-    this->dataManager = new DataManager("../src/data.dat");
+    dataManager = new DataManager("../src/data.dat");
     random_device random_device;
-    this->numbersGenerator = new default_random_engine(random_device());
-    this->numbersDistribution = new uniform_real_distribution<double>(0, 100);
-    this->polyphaseSorting = new PolyphaseSorting(this->dataManager);
+    numbersGenerator = new default_random_engine(random_device());
+    numbersDistribution = new uniform_real_distribution<double>(0, 100);
+    polyphaseSorting = new PolyphaseSorting(dataManager);
 }
 
 Program::~Program() {
-    delete this->dataManager;
-    delete this->numbersGenerator;
-    delete this->numbersDistribution;
-    delete this->polyphaseSorting;
+    delete dataManager;
+    delete numbersGenerator;
+    delete numbersDistribution;
+    delete polyphaseSorting;
 }
 
 void Program::runProgram() {
@@ -32,7 +32,7 @@ void Program::printMenu() {
     cout << "Wpisz numer operacji do wykonania:" << endl;
     cout << "1. Generuj rekordy" << endl;
     cout << "2. Wpisywanie rekordow" << endl;
-    cout << "3. Wyswietl zawartosc pliku" << endl;
+    cout << "3. Wyswietl zawartosc pliku wejsciowego" << endl;
     cout << "4. Wykonaj sortowanie" << endl;
     cout << "5. Wyjdz" << endl;
 }
@@ -45,44 +45,44 @@ int Program::chooseOption() {
         return 0;
     }
     if (optionNumber == 1) {
-        this->generateData();
+        generateData();
     }
     if (optionNumber == 2) {
-        this->inputRecords();
+        inputRecords();
     }
     if (optionNumber == 3) {
         cout << "Wyswietlanie danych wejsciowych:" << endl;
-        this->dataManager->printFile();
+        dataManager->printFile();
     }
     if (optionNumber == 4) {
-        this->polyphaseSorting->readDataFromFile();
-        if (this->polyphaseSorting->calculateRunsAmount() == 0) {
+        polyphaseSorting->readDataFromFile();
+        if (polyphaseSorting->calculateRunsAmount() == 0) {
             cout << "Plik jest pusty" << endl;
             return optionNumber;
         }
-        this->dataManager->printFile();
+        dataManager->printFile();
         cout << "Czy chcesz wyswietlac tasmy po kazdej fazie sortowania? (1 - tak, 0 - nie)" << endl;
         int printTapes;
         cin >> printTapes;
         if (printTapes == 1) {
             cout << endl << "Tasmy przed sortowaniem" << endl;
-            this->polyphaseSorting->printTapes();
+            polyphaseSorting->printTapes();
         }
-        while (!this->polyphaseSorting->isSorted()) {
-            cout << endl << this->polyphaseSorting->getPhasesCount() + 1 << ". faza sortowania" << endl;
-            this->polyphaseSorting->continueSorting();
-            this->polyphaseSorting->increasePhasesCount();
+        while (!polyphaseSorting->isSorted()) {
+            cout << endl << polyphaseSorting->getPhasesCount() + 1 << ". faza sortowania" << endl;
+            polyphaseSorting->continueSorting();
+            polyphaseSorting->increasePhasesCount();
             if (printTapes == 1) {
                 cout << endl << "Tasmy po scaleniu" << endl;
-                this->polyphaseSorting->printTapes();
+                polyphaseSorting->printTapes();
             }
         }
         cout << "Zakonczono sortowanie" << endl;
         cout << endl << "Plik po posortowaniu: " << endl;
-        this->polyphaseSorting->printResultAndDeleteFiles();
-        cout << "Sortowanie zostalo zakonczone po " << this->polyphaseSorting->getPhasesCount() << " fazach i wymagalo ";
-        cout << this->polyphaseSorting->countDiskAccesses() << " dostepow do dysku." << endl;
-        this->polyphaseSorting->reset();
+        polyphaseSorting->printResultAndDeleteFiles();
+        cout << "Sortowanie zostalo zakonczone po " << polyphaseSorting->getPhasesCount() << " fazach i wymagalo ";
+        cout << polyphaseSorting->countDiskAccesses() << " dostepow do dysku." << endl;
+        polyphaseSorting->reset();
     }
     return optionNumber;
 }
@@ -92,14 +92,14 @@ void Program::generateData() {
     cout << "Wpisz liczbe rekordow do wygenerowania:";
     cin >> recordsAmount;
     Record* newRecord;
-    this->dataManager->startInput();
+    dataManager->startInput();
     for (int i = 0; i < recordsAmount; i++) {
-        newRecord = new Record(this->numbersGenerator, this->numbersDistribution);
-        this->dataManager->writeRecordToFile(newRecord);
+        newRecord = new Record(numbersGenerator, numbersDistribution);
+        dataManager->writeRecordToFile(newRecord);
         delete newRecord;
     }
-    this->dataManager->stopInput();
-    this->polyphaseSorting->setNotSorted();
+    dataManager->stopInput();
+    polyphaseSorting->setNotSorted();
 }
 
 void Program::inputRecords() {
@@ -107,7 +107,7 @@ void Program::inputRecords() {
     double a, b, h;
     cout << "Podaj liczbe nowych rekordow:";
     cin >> recordsAmount;
-    this->dataManager->startInput();
+    dataManager->startInput();
     for (int i = 0; i < recordsAmount; i++) {
         cout << "Rekord nr. " << i + 1 << endl;
         cout << "Podaj a:";
@@ -116,7 +116,7 @@ void Program::inputRecords() {
         cin >> b;
         cout << "Podaj h:";
         cin >> h;
-        this->dataManager->writeRecordToFile(new Record(a, b, h));
+        dataManager->writeRecordToFile(new Record(a, b, h));
     }
-    this->dataManager->stopInput();
+    dataManager->stopInput();
 }

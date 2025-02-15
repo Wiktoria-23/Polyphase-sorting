@@ -26,9 +26,9 @@ public:
     void setNotSorted();
     void reset();
 private:
-    Tape* tape1; // tutaj zapisujemy serie (dłuższa taśma)
-    Tape* tape2; // tutaj zapisujemy serie (krótsza taśma)
-    Tape* tape3; // tutaj zapisujemy wynik scalania
+    Tape* tape1; // longer tape
+    Tape* tape2; // shorter tape
+    Tape* tape3; // tape used to save results of merge
     DataManager* dataManager;
     bool sorted;
     int phasesCount;

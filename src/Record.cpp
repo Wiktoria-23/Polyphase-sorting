@@ -1,39 +1,37 @@
 #include "Record.h"
 
 Record::Record() {
-    this->a = 0;
-    this->b = 0;
-    this->h = 0;
+    a = 0;
+    b = 0;
+    h = 0;
 }
 
 Record::Record(default_random_engine* generator, uniform_real_distribution<double>* distribution) {
-    this->a = (*distribution)(*generator);
-    this->b = (*distribution)(*generator);
-    this->h = (*distribution)(*generator);
+    a = (*distribution)(*generator);
+    b = (*distribution)(*generator);
+    h = (*distribution)(*generator);
 }
 
-Record::Record(double a, double b, double h) {
-    this->a = a;
-    this->b = b;
-    this->h = h;
+Record::Record(double newA, double newB, double newH) {
+    a = newA;
+    b = newB;
+    h = newH;
 }
 
-Record::~Record() {
-
-}
+Record::~Record() = default;
 
 double Record::calculateField() const {
-    return (this->a + this->b) * this->h / 2;
+    return (a + b) * h / 2;
 }
 
 double Record::getA() {
-    return this->a;
+    return a;
 }
 
 double Record::getB() {
-    return this->b;
+    return b;
 }
 
 double Record::getH() {
-    return this->h;
+    return h;
 }

@@ -4,13 +4,13 @@
 #include "DiskPage.h"
 #include "Record.h"
 
-PolyphaseSorting::PolyphaseSorting(DataManager* dataManager) {
-    this->tape1 = new Tape("../src/tape1.dat");
-    this->tape2 = new Tape("../src/tape2.dat");
-    this->tape3 = new Tape("../src/tape3.dat");
-    this->dataManager = dataManager;
-    this->sorted = false;
-    this->phasesCount = 0;
+PolyphaseSorting::PolyphaseSorting(DataManager* newDataManager) {
+    tape1 = new Tape("../src/tape1.dat");
+    tape2 = new Tape("../src/tape2.dat");
+    tape3 = new Tape("../src/tape3.dat");
+    dataManager = newDataManager;
+    sorted = false;
+    phasesCount = 0;
 }
 
 PolyphaseSorting::~PolyphaseSorting() {
@@ -20,24 +20,25 @@ PolyphaseSorting::~PolyphaseSorting() {
 }
 
 void PolyphaseSorting::readDataFromFile() {
-    // dystrybucja danych pomiędzy taśmy
-    this->dataManager->startReadingData();
-    this->dataManager->readNextDiskPageFromFile();
+    // data distribution between tapes
+    dataManager->startReadingData();
+    dataManager->readNextDiskPageFromFile();
     vector<Record*>* run;
-    // ustawiamy początkowe wartości na maksymalnego double by zaznaczyć że trzeba zwiększyć liczbę rekordów
+    // we set last elements on tape value as max double to indicate that tapes need to raise series limit
+    // (start of new series)
     double lastElementValue1 = numeric_limits<double>::max();
     double lastElementValue2 = numeric_limits<double>::max();
     tape1->startInput();
     tape2->startInput();
     if (dataManager->getCurrentDiskPage()->getRecords()->empty()) {
-        this->sorted = true;
-        this->dataManager->stopReadingData();
+        sorted = true;
+        dataManager->stopReadingData();
         tape1->stopInput();
         tape2->stopInput();
         return;
     }
     do {
-        run = this->dataManager->getNextRun();
+        run = dataManager->getNextRun();
         if (run == nullptr) {
             break;
         }
@@ -60,25 +61,26 @@ void PolyphaseSorting::readDataFromFile() {
             tape2->writeRunToDiskPage(run, lastElementValue2 < firstElementValue);
             lastElementValue2 = run->back()->calculateField();
         }
-    } while (!this->dataManager->isFileRead() || this->dataManager->getCurrentDiskPage()->getIndex() < this->dataManager->getCurrentDiskPage()->getRecords()->size());
+    } while (!dataManager->isFileRead()
+        || dataManager->getCurrentDiskPage()->getIndex() < dataManager->getCurrentDiskPage()->getRecords()->size());
     cout << "Odczytano " << this->calculateRunsAmount() << " serii z pliku wejsciowego" << endl;
-    this->getReadyToSort();
+    getReadyToSort();
     cout << "W pliku do posortowania znajduje sie " << this->calculateRunsAmount() << " serii" << endl;
-    this->dataManager->stopReadingData();
-    this->tape1->stopInput();
-    this->tape2->stopInput();
-    if (this->tape1->getRunsCount() == 1 && this->tape2->getRunsCount() == 0) {
-        this->sorted = true;
+    dataManager->stopReadingData();
+    tape1->stopInput();
+    tape2->stopInput();
+    if (tape1->getRunsCount() == 1 && tape2->getRunsCount() == 0) {
+        sorted = true;
     }
 }
 
 void PolyphaseSorting::continueSorting() {
-    // pusta taśma to będzie zawsze taśma 3, po wykonaniu scalania podmieniamy wskaźniki tak, by wszystko się zgadzało
-    // dłuższa taśma to taśma nr 2
-    // krótsza taśma to taśma nr 1
-    // wykonujemy jedną fazę sortowania
-    // następnie mergujemy wszystkie rekordy z mniejszej taśmy z odpowiednią liczbą rekordów z większej taśmy
-    // wynik zostaje zapisany na pustej taśmie
+    // empty tape will be always tape3
+    // the tape that has more series is tape2
+    // shorter tape is tape1
+    // after merge pointers to tapes are swapped so this condition is always true
+    // all the series from tape1 are merged with the same amount of series from tape2
+    // result of merge is saved on tape1
     tape1->startReadingData();
     tape1->readNextDiskPageFromFile();
     tape2->startReadingData();
@@ -102,41 +104,40 @@ void PolyphaseSorting::continueSorting() {
     tape1->stopReadingData();
     tape2->stopReadingData();
     tape3->stopInput();
-    // po sortowaniu pustą taśmą będzie taśma nr 1
-    // taśmą dłuższą będzie taśma nr 3
-    // taśmą krótszą będzie taśma nr 2
-    // PRZY PODMIANIE TAŚM JESZCZE TRZEBA ZADBAĆ O TO, BY ICH POJEMNOŚCI SIĘ ZGADZALY Z LICZBĄ REKORDÓW
+    // after sort:
+    // empty tape - tape1
+    // longer tape - tape3
+    // shorter tape - tape2
     Tape* tmp = tape3;
     tape3 = tape1;
     tape1 = tape2;
     tape2 = tmp;
-    remove(this->tape3->getFilename());
-    this->tape3->createNewFile();
+    tape3->createNewFile();
     if (calculateRunsAmount() == 1) {
-        this->sorted = true;
+        sorted = true;
     }
 }
 
 bool PolyphaseSorting::isSorted() {
-    return this->sorted;
+    return sorted;
 }
 
 void PolyphaseSorting::printTapes() {
     cout << endl << "Tasma 1" << endl;
-    this->tape1->printFile();
+    tape1->printFile();
     cout << endl << "Tasma 2" << endl;
-    this->tape2->printFile();
+    tape2->printFile();
     cout << endl << "Tasma 3" << endl;
-    this->tape3->printFile();
+    tape3->printFile();
 }
 
 void PolyphaseSorting::increasePhasesCount() {
-    this->phasesCount++;
+    phasesCount++;
 }
 
 void PolyphaseSorting::getReadyToSort() {
-    // sprawdzamy czy taśmy maja odpowiednią wielkość
-    // pustą serię którą dodajemy do taśmy oznaczamy za pomocą rekordu z ujemnym polem
+    // checking if tapes have proper length
+    // empty series are added to tapes by record with field that's value is less than zero
     if (tape1->getCapacity() != tape1->getRunsCount() && tape1->getRunsCount() != 0) {
         while (tape1->getCapacity() != tape1->getRunsCount()) {
             vector<Record*>* emptyRun = new vector<Record *>{new Record(-1,-1,1)};
@@ -174,7 +175,8 @@ vector<Record *> *PolyphaseSorting::mergeRuns(vector<Record *> *run1, vector<Rec
             }
             run1->erase(run1->begin());
         }
-        else if (run1->empty() || (!run2->empty() && run2->front()->calculateField() <= run1->front()->calculateField())) {
+        else if (run1->empty()
+            || (!run2->empty() && run2->front()->calculateField() <= run1->front()->calculateField())) {
             if (run2->front()->calculateField() > 0) {
                 result->push_back(run2->front());
             }
@@ -185,51 +187,51 @@ vector<Record *> *PolyphaseSorting::mergeRuns(vector<Record *> *run1, vector<Rec
 }
 
 int PolyphaseSorting::getPhasesCount() {
-    return this->phasesCount;
+    return phasesCount;
 }
 
 int PolyphaseSorting::countDiskAccesses() {
-    return this->tape1->getDiskAccessCounter() + this->tape2->getDiskAccessCounter() + this->tape3->getDiskAccessCounter();
+    return tape1->getDiskAccessCounter() + tape2->getDiskAccessCounter() + tape3->getDiskAccessCounter();
 }
 
 int PolyphaseSorting::calculateRunsAmount() {
-    return (this->tape1->getRunsCount() + this->tape2->getRunsCount() + this->tape3->getRunsCount());
+    return (tape1->getRunsCount() + tape2->getRunsCount() + tape3->getRunsCount());
 }
 
 void PolyphaseSorting::printResultAndDeleteFiles() {
-    if (this->tape2->getRunsCount() != 0) {
-        this->tape2->printFile();
+    if (tape2->getRunsCount() != 0) {
+        tape2->printFile();
     }
     else {
-        this->tape1->printFile();
+        tape1->printFile();
     }
-    string path = this->dataManager->getFilename();
-    remove(this->dataManager->getFilename());
-    if (this->tape2->getRunsCount() > 0) {
-        rename(this->tape2->getFilename(), path.c_str());
-        remove(this->tape1->getFilename());
+    string path = dataManager->getFilename();
+    remove(dataManager->getFilename());
+    if (tape2->getRunsCount() > 0) {
+        rename(tape2->getFilename(), path.c_str());
+        remove(tape1->getFilename());
     }
     else {
-        rename(this->tape1->getFilename(), path.c_str());
-        remove(this->tape2->getFilename());
+        rename(tape1->getFilename(), path.c_str());
+        remove(tape2->getFilename());
     }
-    remove(this->tape3->getFilename());
-    this->tape1->createNewFile();
-    this->tape2->createNewFile();
-    this->tape3->createNewFile();
+    remove(tape3->getFilename());
+    tape1->createNewFile();
+    tape2->createNewFile();
+    tape3->createNewFile();
 }
 
 void PolyphaseSorting::setNotSorted() {
-    this->sorted = false;
+    sorted = false;
 }
 
 void PolyphaseSorting::reset() {
-    this->sorted = false;
-    this->phasesCount = 0;
-    string path = this->dataManager->getFilename();
-    delete this->dataManager;
-    this->dataManager = new DataManager(path);
-    this->tape1->reset();
-    this->tape2->reset();
-    this->tape3->reset();
+    sorted = false;
+    phasesCount = 0;
+    string path = dataManager->getFilename();
+    delete dataManager;
+    dataManager = new DataManager(path);
+    tape1->reset();
+    tape2->reset();
+    tape3->reset();
 }

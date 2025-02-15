@@ -3,55 +3,55 @@
 #include "Program.h"
 
 DiskPage::DiskPage() {
-    this->capacity = DISK_PAGE_SIZE/RECORD_SIZE;
-    this->records = new vector<Record*>;
-    this->full = false;
-    this->index = 0;
+    capacity = DISK_PAGE_SIZE/RECORD_SIZE;
+    records = new vector<Record*>;
+    full = false;
+    index = 0;
 }
 
 DiskPage::~DiskPage() {
-    // rekordy są usuwane zawsze odpowiednio wcześniej
+    //all records are deleted before
     delete records;
 }
 
 vector<Record*>* DiskPage::getRecords() {
-    return this->records;
+    return records;
 }
 
 void DiskPage::clear() {
     records->clear();
-    this->full = false;
-    this->index = 0;
+    full = false;
+    index = 0;
 }
 
 void DiskPage::writeRecordToDiskPage(Record *record) {
-    this->getRecords()->push_back(record);
-    if (this->records->size() == DISK_PAGE_SIZE/RECORD_SIZE) {
-        this->full = true;
+    getRecords()->push_back(record);
+    if (records->size() == DISK_PAGE_SIZE/RECORD_SIZE) {
+        full = true;
     }
 }
 
 bool DiskPage::isFull() {
-    return this->full;
+    return full;
 }
 
 void DiskPage::increaseIndex() {
-    this->index++;
+    index++;
 }
 
 int DiskPage::getIndex() {
-    return this->index;
+    return index;
 }
 
 void DiskPage::deleteAllRecords() {
-    for (int i = 0; i < this->records->size(); i++) {
-        if (this->records->at(i) != nullptr) {
-            delete this->records->at(i);
+    for (int i = 0; i < records->size(); i++) {
+        if (records->at(i) != nullptr) {
+            delete records->at(i);
         }
     }
 }
 
 Record *DiskPage::getRecordFromDiskPage(int index) {
-    return this->records->at(index);
+    return records->at(index);
 }
 

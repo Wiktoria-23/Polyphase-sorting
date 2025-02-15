@@ -1,22 +1,23 @@
 #include "DataManager.h"
+
+#include <utility>
 #include "Program.h"
 #include "Record.h"
 #include "DiskPage.h"
 
-DataManager::DataManager(string dataPath) {
-    // próbujemy otworzyć plik z danymi, jeżeli plik nie zostaje poprawnie otwarty (nie istnieje) tworzymy nowy
-    this->diskAccessCounter = 0;
-    this->dataPath = dataPath;
-    this->createNewFile();
-    this->currentDiskPage = nullptr;
+DataManager::DataManager(string newDataPath) {
+    diskAccessCounter = 0;
+    dataPath = std::move(newDataPath);
+    DataManager::createNewFile();
+    currentDiskPage = nullptr;
 }
 
 DataManager::~DataManager() {
-    if (this->fileStream.is_open()) {
-        this->fileStream.close();
+    if (fileStream.is_open()) {
+        fileStream.close();
     }
-    if (this->currentDiskPage != nullptr) {
-        delete this->currentDiskPage;
+    if (currentDiskPage != nullptr) {
+        delete currentDiskPage;
     }
 }
 
@@ -29,22 +30,22 @@ void DataManager::writeRecordToFile(Record* record) {
 }
 
 void DataManager::startInput() {
-    this->fileStream.open(this->dataPath, std::ios::binary | std::ios::app);
-    this->currentDiskPage = new DiskPage();
-    this->continueReadingData = true;
+    fileStream.open(dataPath, std::ios::binary | std::ios::app);
+    currentDiskPage = new DiskPage();
+    continueReadingData = true;
 }
 
 void DataManager::stopInput() {
-    this->writeDiskPageToFile();
-    delete this->currentDiskPage;
-    this->currentDiskPage = nullptr;
-    this->fileStream.close();
+    writeDiskPageToFile();
+    delete currentDiskPage;
+    currentDiskPage = nullptr;
+    fileStream.close();
 }
 
 void DataManager::printFile() {
-    this->startReadingData();
-    this->printRecords();
-    this->stopReadingData();
+    startReadingData();
+    printRecords();
+    stopReadingData();
 }
 
 Record* DataManager::readRecordFromFile() {
@@ -58,67 +59,69 @@ Record* DataManager::readRecordFromFile() {
 
 void DataManager::readNextDiskPageFromFile() {
     double records[3 * DISK_PAGE_SIZE/RECORD_SIZE];
-    this->currentDiskPage->clear();
-    this->fileStream.read(reinterpret_cast<char*>(records), DISK_PAGE_SIZE);
-    int recordsRead = this->fileStream.gcount() / RECORD_SIZE;
+    currentDiskPage->clear();
+    fileStream.read(reinterpret_cast<char*>(records), DISK_PAGE_SIZE);
+    int recordsRead = fileStream.gcount() / RECORD_SIZE;
 
     for (int i = 0; i < recordsRead; i++) {
-        this->currentDiskPage->getRecords()->push_back(new Record(records[(3 * i)], records[(3 * i) + 1], records[(3 * i) + 2]));
+        currentDiskPage->getRecords()->push_back(
+            new Record(records[(3 * i)], records[(3 * i) + 1], records[(3 * i) + 2])
+            );
     }
     if (recordsRead < DISK_PAGE_SIZE/RECORD_SIZE) {
-        this->continueReadingData = false;
+        continueReadingData = false;
     }
-    this->diskAccessCounter += 1;
+    diskAccessCounter += 1;
 }
 
 void DataManager::startReadingData() {
-    this->continueReadingData = true;
-    this->currentDiskPage = new DiskPage();
-    this->currentDiskPage->clear();
-    this->fileStream.open(this->dataPath, std::ios::binary | std::ios::in | std::ios::out);
+    continueReadingData = true;
+    currentDiskPage = new DiskPage();
+    currentDiskPage->clear();
+    fileStream.open(dataPath, std::ios::binary | std::ios::in | std::ios::out);
 }
 
 void DataManager::stopReadingData() {
-    this->continueReadingData = false;
-    delete this->currentDiskPage;
-    this->currentDiskPage = nullptr;
-    this->fileStream.close();
+    continueReadingData = false;
+    delete currentDiskPage;
+    currentDiskPage = nullptr;
+    fileStream.close();
 }
 
 bool DataManager::isFileRead() {
-    return !this->continueReadingData;
+    return !continueReadingData;
 }
 
 vector<Record*>* DataManager::getNextRun() {
-    if (this->currentDiskPage->getIndex() >= this->currentDiskPage->getRecords()->size() && continueReadingData) {
-        this->readNextDiskPageFromFile();
+    if (currentDiskPage->getIndex() >= currentDiskPage->getRecords()->size() && continueReadingData) {
+        readNextDiskPageFromFile();
     }
-    if (!continueReadingData && this->currentDiskPage->getRecords()->empty()) {
+    if (!continueReadingData && currentDiskPage->getRecords()->empty()) {
         return nullptr;
     }
     vector<Record*>* run = new vector<Record*>;
-    Record* currentRecord = this->currentDiskPage->getRecords()->at(this->currentDiskPage->getIndex());
+    Record* currentRecord = currentDiskPage->getRecords()->at(currentDiskPage->getIndex());
     if (currentRecord->calculateField() < 0) {
         // rekord z ujemnym polem - koniec serii
         run->push_back(currentRecord);
-        this->currentDiskPage->increaseIndex();
+        currentDiskPage->increaseIndex();
         return run;
     }
     double previousValue = -1;
     while (previousValue <= currentRecord->calculateField()) {
         run->push_back(currentRecord);
-        this->currentDiskPage->increaseIndex();
-        if (this->currentDiskPage->getIndex() >= this->currentDiskPage->getRecords()->size()) {
+        currentDiskPage->increaseIndex();
+        if (currentDiskPage->getIndex() >= currentDiskPage->getRecords()->size()) {
             if (continueReadingData) {
-                this->readNextDiskPageFromFile();
+                readNextDiskPageFromFile();
             }
             else {
                 break;
             }
         }
         previousValue = currentRecord->calculateField();
-        if (this->currentDiskPage->getRecords()->size() != 0) {
-            currentRecord = this->currentDiskPage->getRecordFromDiskPage(this->currentDiskPage->getIndex());
+        if (currentDiskPage->getRecords()->size() != 0) {
+            currentRecord = currentDiskPage->getRecordFromDiskPage(this->currentDiskPage->getIndex());
         }
         else {
             break;
@@ -128,41 +131,42 @@ vector<Record*>* DataManager::getNextRun() {
 }
 
 void DataManager::writeDiskPageToFile() {
-    int recordsAmount = this->currentDiskPage->getRecords()->size();
+    int recordsAmount = currentDiskPage->getRecords()->size();
     double dataToWrite[3 * recordsAmount];
     for (int i = 0; i < recordsAmount; i+=1) {
-        dataToWrite[(3 * i)] = this->currentDiskPage->getRecordFromDiskPage(i)->getA();
-        dataToWrite[(3 * i) + 1] = this->currentDiskPage->getRecordFromDiskPage(i)->getB();
-        dataToWrite[(3 * i) + 2] = this->currentDiskPage->getRecordFromDiskPage(i)->getH();
+        dataToWrite[(3 * i)] = currentDiskPage->getRecordFromDiskPage(i)->getA();
+        dataToWrite[(3 * i) + 1] = currentDiskPage->getRecordFromDiskPage(i)->getB();
+        dataToWrite[(3 * i) + 2] = currentDiskPage->getRecordFromDiskPage(i)->getH();
     }
     fileStream.write(reinterpret_cast<char*>(dataToWrite), RECORD_SIZE * recordsAmount);
-    this->currentDiskPage->deleteAllRecords();
-    this->currentDiskPage->clear();
-    this->diskAccessCounter += 1;
+    currentDiskPage->deleteAllRecords();
+    currentDiskPage->clear();
+    diskAccessCounter += 1;
 }
 
 int DataManager::getDiskAccessCounter() {
-    return this->diskAccessCounter;
+    return diskAccessCounter;
 }
 
 DiskPage* DataManager::getCurrentDiskPage() {
-    return this->currentDiskPage;
+    return currentDiskPage;
 }
 
 void DataManager::printRecords() {
     int counter = 1;
     cout << "(numer rekordu, a, b, h, pole)" << endl;
     Record* record = nullptr;
-    this->readNextDiskPageFromFile();
+    readNextDiskPageFromFile();
     while (true) {
-        if (this->currentDiskPage->getIndex() >= this->currentDiskPage->getRecords()->size()) {
-            this->readNextDiskPageFromFile();
-            this->diskAccessCounter -= 1;  // nie zliczamy dostępów do dysku przy wyświetlaniu pliku
+        if (currentDiskPage->getIndex() >= currentDiskPage->getRecords()->size()) {
+            readNextDiskPageFromFile();
+            diskAccessCounter -= 1;  // nie zliczamy dostępów do dysku przy wyświetlaniu pliku
         }
-        if (this->currentDiskPage->getRecords()->size() > 0) {
-            record = this->currentDiskPage->getRecordFromDiskPage(this->currentDiskPage->getIndex());
-            this->currentDiskPage->increaseIndex();
-            cout << counter << ". " << record->getA() << " " << record->getB() << " " << record->getH() << " " << record->calculateField() << endl;
+        if (currentDiskPage->getRecords()->size() > 0) {
+            record = currentDiskPage->getRecordFromDiskPage(currentDiskPage->getIndex());
+            currentDiskPage->increaseIndex();
+            cout << counter << ". " << record->getA() << " " << record->getB() << " " << record->getH() << " ";
+            cout << record->calculateField() << endl;
             counter++;
         }
         else {
@@ -172,37 +176,18 @@ void DataManager::printRecords() {
             cout << "Plik jest pusty" << endl;
             break;
         }
-        if (record == nullptr || (!this->continueReadingData && this->currentDiskPage->getIndex() >= this->currentDiskPage->getRecords()->size())) {
+        if (record == nullptr
+            || (!continueReadingData && currentDiskPage->getIndex() >= currentDiskPage->getRecords()->size())) {
             break;
         }
     }
-    /*Record* record;
-    int counter = 1;
-    cout << "(numer rekordu, a, b, h, pole)" << endl;
-    do {
-        record = this->readRecordFromFile();
-        if (record == nullptr && counter == 1) {
-            cout << "Plik jest pusty" << endl;
-            break;
-        }
-        if (record == nullptr) {
-            break;
-        }
-        cout << counter << ". " << record->getA() << " " << record->getB() << " " << record->getH() << " " << record->calculateField() << endl;
-        counter++;
-        delete record;
-    } while (true);*/
 }
 
 const char* DataManager::getFilename() {
-    return this->dataPath.c_str();
+    return dataPath.c_str();
 }
 
 void DataManager::createNewFile() {
-    this->fileStream.open(this->dataPath, std::ios::binary | std::ios::in | std::ios::out);
-    if (!fileStream) {
-        this->fileStream.clear();
-        this->fileStream.open(this->dataPath, std::ios::binary | std::ios::out);
-    }
+    fileStream.open(dataPath, std::ios::binary | std::ios::out);
     fileStream.close();
 }
