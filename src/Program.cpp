@@ -68,10 +68,13 @@ int Program::chooseOption() {
             cout << endl << "Tasmy przed sortowaniem" << endl;
             polyphaseSorting->printTapes();
         }
-        while (!polyphaseSorting->isSorted()) {
+        while (true) {
             cout << endl << polyphaseSorting->getPhasesCount() + 1 << ". faza sortowania" << endl;
             polyphaseSorting->continueSorting();
             polyphaseSorting->increasePhasesCount();
+            if (polyphaseSorting->isSorted()) {
+                break;
+            }
             if (printTapes == 1) {
                 cout << endl << "Tasmy po scaleniu" << endl;
                 polyphaseSorting->printTapes();

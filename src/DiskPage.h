@@ -22,6 +22,7 @@ public:
     int getIndex();
     void deleteAllRecords();
     Record* getRecordFromDiskPage(int index);
+    Record* getNextRecordFromDiskPage();
 };
 
 

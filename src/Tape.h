@@ -6,7 +6,6 @@
 #include "DataManager.h"
 using namespace std;
 
-class DataManager;
 class Record;
 
 class Tape: public DataManager {
@@ -14,20 +13,29 @@ public:
     Tape(string dataPath);
     ~Tape();
     void increaseCapacity(int toAdd);
+    void increaseRunsCount();
+    void increaseFakeRunsCount();
+    void decreaseRunsCount();
+    void decreaseFakeRunsCount();
     int getCapacity();
-    void writeRunToDiskPage(vector<Record*>* run, bool continueRun);
     int getRunsCount();
-    vector<Record*>* getNextRun() override;
+    int getFakeRunsCount();
     void startReadingData() override;
     void startInput() override;
     void printFile() override;
     void setCapacity(int newCapacity);
     void createNewFile() override;
     void reset();
+    void setLastElementValue(double value);
+    double getLastElementValue();
+    void stopInput() override;
+    bool checkIfRunEnds(DataManager* srcTape);
+    void startNewRun();
 private:
     int currentCapacity;
     int runsCount;
-    int readingStart;
+    int fakeRunsCount;
+    double lastElementValue;
 };
 
 

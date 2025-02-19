@@ -29,6 +29,7 @@ void DiskPage::writeRecordToDiskPage(Record *record) {
     if (records->size() == DISK_PAGE_SIZE/RECORD_SIZE) {
         full = true;
     }
+
 }
 
 bool DiskPage::isFull() {
@@ -53,5 +54,12 @@ void DiskPage::deleteAllRecords() {
 
 Record *DiskPage::getRecordFromDiskPage(int index) {
     return records->at(index);
+}
+
+Record* DiskPage::getNextRecordFromDiskPage() {
+    if (index < records->size()) {
+        return records->at(index);
+    }
+    else return nullptr;
 }
 

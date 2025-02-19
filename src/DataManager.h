@@ -2,8 +2,8 @@
 #define DATA_MANAGER_H
 #include <string>
 #include <fstream>
-#include <iostream>
 #include <vector>
+
 using namespace std;
 
 
@@ -14,9 +14,9 @@ class Record;
 class DataManager {
 public:
     DataManager(string dataPath);
-    ~DataManager();
+    virtual ~DataManager();
     virtual void startInput();
-    void stopInput();
+    virtual void stopInput();
     void writeRecordToFile(Record* record);
     virtual void printFile();
     virtual void startReadingData();
@@ -31,12 +31,14 @@ public:
     void printRecords();
     const char* getFilename();
     virtual void createNewFile();
+    void increaseReadingStart();
 protected:
     DiskPage* currentDiskPage;
     string dataPath;
     fstream fileStream;
     bool continueReadingData;
     int diskAccessCounter;
+    int readingStart;
 };
 
 

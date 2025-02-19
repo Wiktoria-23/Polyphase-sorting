@@ -18,13 +18,14 @@ public:
     void printTapes();
     void increasePhasesCount();
     void getReadyToSort();
-    vector<Record*>* mergeRuns(vector<Record*>* run1, vector<Record*>* run2);
+    void mergeRuns();
     int getPhasesCount();
     int countDiskAccesses();
     int calculateRunsAmount();
     void printResultAndDeleteFiles();
     void setNotSorted();
     void reset();
+    void copyRunToAnotherTape(DataManager* srcTape, Tape* destTape);
 private:
     Tape* tape1; // longer tape
     Tape* tape2; // shorter tape

@@ -1,3 +1,4 @@
+#include <iostream>
 #include "PolyphaseSorting.h"
 #include "Tape.h"
 #include "DataManager.h"
@@ -23,11 +24,8 @@ void PolyphaseSorting::readDataFromFile() {
     // data distribution between tapes
     dataManager->startReadingData();
     dataManager->readNextDiskPageFromFile();
-    vector<Record*>* run;
     // we set last elements on tape value as max double to indicate that tapes need to raise series limit
     // (start of new series)
-    double lastElementValue1 = numeric_limits<double>::max();
-    double lastElementValue2 = numeric_limits<double>::max();
     tape1->startInput();
     tape2->startInput();
     if (dataManager->getCurrentDiskPage()->getRecords()->empty()) {
@@ -38,37 +36,30 @@ void PolyphaseSorting::readDataFromFile() {
         return;
     }
     do {
-        run = dataManager->getNextRun();
-        if (run == nullptr) {
-            break;
+        if ((tape1->checkIfRunEnds(dataManager) && tape1->getCapacity() > tape1->getRunsCount() + 1)
+            || (!tape1->checkIfRunEnds(dataManager) && tape1->getCapacity() > tape1->getRunsCount())) {
+            copyRunToAnotherTape(dataManager, tape1);
         }
-        double firstElementValue = run->at(0)->calculateField();
-        if (tape1->getCapacity() > tape1->getRunsCount()) {
-            tape1->writeRunToDiskPage(run, lastElementValue1 < firstElementValue);
-            lastElementValue1 = run->back()->calculateField();
-        }
-        else if (tape2->getCapacity() > tape2->getRunsCount()) {
-            tape2->writeRunToDiskPage(run, lastElementValue2 < firstElementValue);
-            lastElementValue2 = run->back()->calculateField();
+        else if ((tape2->checkIfRunEnds(dataManager) && tape2->getCapacity() > tape2->getRunsCount() + 1)
+            || (!tape2->checkIfRunEnds(dataManager) && tape2->getCapacity() > tape2->getRunsCount())) {
+            copyRunToAnotherTape(dataManager, tape2);
         }
         else if (tape1->getCapacity() <= tape2->getCapacity()) {
             tape1->increaseCapacity(tape2->getCapacity());
-            tape1->writeRunToDiskPage(run, lastElementValue1 < firstElementValue);
-            lastElementValue1 = run->back()->calculateField();
+            copyRunToAnotherTape(dataManager, tape1);
         }
         else {
             tape2->increaseCapacity(tape1->getCapacity());
-            tape2->writeRunToDiskPage(run, lastElementValue2 < firstElementValue);
-            lastElementValue2 = run->back()->calculateField();
+            copyRunToAnotherTape(dataManager, tape2);
         }
-    } while (!dataManager->isFileRead()
+    } while (!dataManager->getCurrentDiskPage()->getRecords()->empty()
         || dataManager->getCurrentDiskPage()->getIndex() < dataManager->getCurrentDiskPage()->getRecords()->size());
-    cout << "Odczytano " << this->calculateRunsAmount() << " serii z pliku wejsciowego" << endl;
-    getReadyToSort();
-    cout << "W pliku do posortowania znajduje sie " << this->calculateRunsAmount() << " serii" << endl;
     dataManager->stopReadingData();
     tape1->stopInput();
     tape2->stopInput();
+    cout << "Odczytano " << this->calculateRunsAmount() << " serii z pliku wejsciowego" << endl;
+    getReadyToSort();
+    cout << "W pliku do posortowania znajduje sie " << this->calculateRunsAmount() << " serii" << endl;
     if (tape1->getRunsCount() == 1 && tape2->getRunsCount() == 0) {
         sorted = true;
     }
@@ -86,32 +77,21 @@ void PolyphaseSorting::continueSorting() {
     tape2->startReadingData();
     tape2->readNextDiskPageFromFile();
     tape3->startInput();
-    int runsToMerge = tape1->getRunsCount();
-    vector<Record*>* run1;
-    vector<Record*>* run2;
-    vector<Record*>* result;
-    for (int i = 0; i < runsToMerge; i++) {
-        run1 = this->tape1->getNextRun();
-        run2 = this->tape2->getNextRun();
-        if (run1 != nullptr && run2 != nullptr) {
-            result = this->mergeRuns(run1, run2);
-            tape3->writeRunToDiskPage(result, false);
-        }
-    }
-    tape1->setCapacity(1);
-    tape2->setCapacity(tape2->getRunsCount());
+    mergeRuns();
+    tape1->setCapacity(tape1->getRunsCount());
+    tape2->setCapacity(1);
     tape3->setCapacity(tape3->getRunsCount());
     tape1->stopReadingData();
     tape2->stopReadingData();
     tape3->stopInput();
-    // after sort:
-    // empty tape - tape1
+    // after merge:
+    // shorter tape - tape1
+    // empty tape - tape2
     // longer tape - tape3
-    // shorter tape - tape2
     Tape* tmp = tape3;
-    tape3 = tape1;
-    tape1 = tape2;
-    tape2 = tmp;
+    tape3 = tape2;
+    tape2 = tape1;
+    tape1 = tmp;
     tape3->createNewFile();
     if (calculateRunsAmount() == 1) {
         sorted = true;
@@ -125,8 +105,12 @@ bool PolyphaseSorting::isSorted() {
 void PolyphaseSorting::printTapes() {
     cout << endl << "Tasma 1" << endl;
     tape1->printFile();
+    cout << "Na tasmie 1 znajduje sie " << tape1->getRunsCount() << " serii w tym " << tape1->getFakeRunsCount();
+    cout << " serii pustych";
     cout << endl << "Tasma 2" << endl;
     tape2->printFile();
+    cout << "Na tasmie 2 znajduje sie " << tape2->getRunsCount() << " serii w tym " << tape2->getFakeRunsCount();
+    cout << " serii pustych";
     cout << endl << "Tasma 3" << endl;
     tape3->printFile();
 }
@@ -140,50 +124,77 @@ void PolyphaseSorting::getReadyToSort() {
     // empty series are added to tapes by record with field that's value is less than zero
     if (tape1->getCapacity() != tape1->getRunsCount() && tape1->getRunsCount() != 0) {
         while (tape1->getCapacity() != tape1->getRunsCount()) {
-            vector<Record*>* emptyRun = new vector<Record *>{new Record(-1,-1,1)};
-            tape1->writeRunToDiskPage(emptyRun, false);
+            tape1->increaseRunsCount();
+            tape1->increaseFakeRunsCount();
         }
     }
     else if (tape2->getCapacity() != tape2->getRunsCount() && tape2->getRunsCount() != 0) {
         while (tape2->getCapacity() != tape2->getRunsCount()) {
-            vector<Record*>* emptyRun = new vector<Record *>{new Record(-1,-1,1)};
-            tape2->writeRunToDiskPage(emptyRun, false);
+            tape2->increaseRunsCount();
+            tape2->increaseFakeRunsCount();
         }
     }
-    if (tape1->getCapacity() > tape2->getCapacity()) {
+    if (tape1->getCapacity() < tape2->getCapacity()) {  // zmieniony znak równości - nie wiem dlaczego to działało
         Tape* tmp = tape1;
         tape1 = tape2;
         tape2 = tmp;
     }
 }
 
-vector<Record *> *PolyphaseSorting::mergeRuns(vector<Record *> *run1, vector<Record *> *run2) {
-    vector<Record*>* result = new vector<Record*>();
-    if (run1 == nullptr && run2 == nullptr) {
-        return nullptr;
-    }
-    if (run1 == nullptr) {
-        return run2;
-    }
-    if (run2 == nullptr) {
-        return run1;
-    }
-    while (!run1->empty() || !run2->empty()) {
-        if (run2->empty() || (!run1->empty() && run1->front()->calculateField() <= run2->front()->calculateField())) {
-            if (run1->front()->calculateField() > 0) {
-                result->push_back(run1->front());
-            }
-            run1->erase(run1->begin());
+void PolyphaseSorting::mergeRuns() {
+    int runsToMerge = tape2->getRunsCount();
+    while (runsToMerge > 0) {
+        tape1->decreaseRunsCount();
+        tape2->decreaseRunsCount();
+        tape1->setLastElementValue(0);
+        tape2->setLastElementValue(0);
+        tape3->setLastElementValue(0);
+        if (tape1->getFakeRunsCount() > 0) {
+            // run from tape2 is copied as we merge it with empty run from tape1
+            tape1->decreaseFakeRunsCount();
+            tape3->startNewRun();
+            copyRunToAnotherTape(tape2, tape3);
         }
-        else if (run1->empty()
-            || (!run2->empty() && run2->front()->calculateField() <= run1->front()->calculateField())) {
-            if (run2->front()->calculateField() > 0) {
-                result->push_back(run2->front());
+        else {
+            if (tape3->getLastElementValue() == 0) {
+                tape3->startNewRun();
             }
-            run2->erase(run2->begin());
+            while (true) {
+                Record* readRecord1 = tape1->getCurrentDiskPage()->getNextRecordFromDiskPage();
+                Record* readRecord2 = tape2->getCurrentDiskPage()->getNextRecordFromDiskPage();
+                if (readRecord1 != nullptr && readRecord1->calculateField() > tape1->getLastElementValue()
+                    &&  readRecord2 != nullptr && readRecord2->calculateField() > tape2->getLastElementValue())
+                    {
+                    Record* toWrite;
+                    if (readRecord1->calculateField() < readRecord2->calculateField()) {
+                        toWrite = readRecord1;
+                        tape1->getCurrentDiskPage()->increaseIndex();
+                        tape1->setLastElementValue(readRecord1->calculateField());
+                        tape1->increaseReadingStart();
+                    }
+                    else {
+                        toWrite = readRecord2;
+                        tape2->getCurrentDiskPage()->increaseIndex();
+                        tape2->setLastElementValue(readRecord2->calculateField());
+                        tape2->increaseReadingStart();
+                    }
+                    tape3->getCurrentDiskPage()->writeRecordToDiskPage(toWrite);
+                }
+                else {
+                    if (readRecord1 != nullptr && readRecord1->calculateField() > tape1->getLastElementValue()) {
+                        copyRunToAnotherTape(tape1, tape3);
+                    }
+                    else if (readRecord2 != nullptr && readRecord2->calculateField() > tape2->getLastElementValue()) {
+                        copyRunToAnotherTape(tape2, tape3);
+                    }
+                    break;
+                }
+            }
         }
+        runsToMerge--;
     }
-    return result;
+    // ending last run on a tape
+    tape3->setLastElementValue(0);
 }
 
 int PolyphaseSorting::getPhasesCount() {
@@ -234,4 +245,29 @@ void PolyphaseSorting::reset() {
     tape1->reset();
     tape2->reset();
     tape3->reset();
+}
+
+void PolyphaseSorting::copyRunToAnotherTape(DataManager* srcTape, Tape* destTape) {
+    DiskPage* diskPageTape = srcTape->getCurrentDiskPage();
+    if (destTape->checkIfRunEnds(srcTape)) {
+        destTape->startNewRun();
+    }
+    while (true) {
+        Record* readRecord = diskPageTape->getNextRecordFromDiskPage();
+        if (readRecord != nullptr && readRecord->calculateField() > destTape->getLastElementValue()) {
+            diskPageTape->increaseIndex();
+            srcTape->increaseReadingStart();
+            destTape->getCurrentDiskPage()->writeRecordToDiskPage(readRecord);
+            destTape->setLastElementValue(readRecord->calculateField());
+            if (diskPageTape->getIndex() >= diskPageTape->getRecords()->size()) {
+                srcTape->readNextDiskPageFromFile();
+                if (diskPageTape->getRecords()->empty()) {
+                    break;
+                }
+            }
+        }
+        else {
+            break;
+        }
+    }
 }

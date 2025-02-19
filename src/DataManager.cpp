@@ -1,5 +1,5 @@
 #include "DataManager.h"
-
+#include "Tape.h"
 #include <utility>
 #include "Program.h"
 #include "Record.h"
@@ -160,7 +160,7 @@ void DataManager::printRecords() {
     while (true) {
         if (currentDiskPage->getIndex() >= currentDiskPage->getRecords()->size()) {
             readNextDiskPageFromFile();
-            diskAccessCounter -= 1;  // nie zliczamy dostępów do dysku przy wyświetlaniu pliku
+            diskAccessCounter -= 1;  // access to file is not counted when printing
         }
         if (currentDiskPage->getRecords()->size() > 0) {
             record = currentDiskPage->getRecordFromDiskPage(currentDiskPage->getIndex());
@@ -190,4 +190,8 @@ const char* DataManager::getFilename() {
 void DataManager::createNewFile() {
     fileStream.open(dataPath, std::ios::binary | std::ios::out);
     fileStream.close();
+}
+
+void DataManager::increaseReadingStart() {
+    readingStart += RECORD_SIZE;
 }
